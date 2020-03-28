@@ -1,3 +1,4 @@
+#encoding=utf-8
 #  Copyright 2008-2015 Nokia Networks
 #  Copyright 2016- Robot Framework Foundation
 #
@@ -24,6 +25,9 @@ import signal
 import sys
 import threading
 import traceback
+import datetime
+import importlib
+
 
 if sys.version_info < (3,):
     from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -38,17 +42,15 @@ else:
     unicode = str
     long = int
 
-
 __all__ = ['RobotRemoteServer', 'stop_remote_server', 'test_remote_server']
 __version__ = '1.1'
 
 BINARY = re.compile('[\x00-\x08\x0B\x0C\x0E-\x1F]')
 NON_ASCII = re.compile('[\x80-\xff]')
 
-
 class RobotRemoteServer(object):
 
-    def __init__(self, library, host='127.0.0.1', port=8270, port_file=None,
+    def __init__(self, host='0.0.0.0', port=8270, port_file=None,
                  allow_stop='DEPRECATED', serve=True, allow_remote_stop=True):
         """Configure and start-up remote server.
 
@@ -70,12 +72,20 @@ class RobotRemoteServer(object):
                             ``Stop Remote Server`` keyword and
                             ``stop_remote_server`` XML-RPC method.
         """
-        self._library = RemoteLibraryFactory(library)
+
         self._server = StoppableXMLRPCServer(host, int(port))
+        self.current_suite = ""
+        self.current_test = ""
         self._register_functions(self._server)
         self._port_file = port_file
-        self._allow_remote_stop = allow_remote_stop \
-                if allow_stop == 'DEPRECATED' else allow_stop
+        try:
+            import remotelib
+            importlib.reload(remotelib)
+            library = remotelib.FcLibrary()
+            self._library = RemoteLibraryFactory(library)
+        except:
+            print("load remotelib failed")
+        self._allow_remote_stop = allow_remote_stop if allow_stop == 'DEPRECATED' else allow_stop
         if serve:
             self.serve()
 
@@ -85,6 +95,8 @@ class RobotRemoteServer(object):
         server.register_function(self.get_keyword_arguments)
         server.register_function(self.get_keyword_documentation)
         server.register_function(self.stop_remote_server)
+        server.register_function(self.receive_remotelib)
+        server.register_function(self.send_file)
 
     @property
     def server_address(self):
@@ -169,10 +181,27 @@ class RobotRemoteServer(object):
     def get_keyword_names(self):
         return self._library.get_keyword_names() + ['stop_remote_server']
 
-    def run_keyword(self, name, args, kwargs=None):
+    def run_keyword(self, name, args, env, kwargs=None):
         if name == 'stop_remote_server':
             return KeywordRunner(self.stop_remote_server).run_keyword(args, kwargs)
-        return self._library.run_keyword(name, args, kwargs)
+        for key in env.keys():
+            os.environ["AT_" + key] = env[key]
+        if env["suite_name"] != self.current_suite:
+            print("----------------------新的测试套件开始-----------------------------")
+            print(env["suite_name"])
+            self.current_suite = env["suite_name"]
+        if env["test_name"] != self.current_test:
+            print("    " + env["test_name"])
+            self.current_test = env["test_name"]
+        print("        %s************开始执行************" % (datetime.datetime.now()))
+        if kwargs:
+            print("        %s(%s)" % (name, kwargs))
+        else:
+            print("        %s(%s)" % (name, args))
+        result = self._library.run_keyword(name, args, kwargs)
+        print("        返回结果： %s" % result)
+        print("        %s************结束执行************" % (datetime.datetime.now()))
+        return result
 
     def get_keyword_arguments(self, name):
         if name == 'stop_remote_server':
@@ -190,6 +219,20 @@ class RobotRemoteServer(object):
             return []
         return self._library.get_keyword_tags(name)
 
+    def receive_remotelib(self, arg):
+        with open("remotelib.py", "wb") as handle:
+            handle.write(arg.data)
+            handle.close()
+            import remotelib
+            importlib.reload(remotelib)
+            library=remotelib.FcLibrary()
+            self._library = RemoteLibraryFactory(library)
+            return True
+
+    def send_file(self,source):
+        handle = open(source)
+        return Binary(handle.read())
+        handle.close()
 
 class StoppableXMLRPCServer(SimpleXMLRPCServer):
     allow_reuse_address = True
@@ -594,8 +637,5 @@ def stop_remote_server(uri, log=True):
         return False
     return True
 
-
 if __name__ == '__main__':
-    lib = os
-    server = RobotRemoteServer(lib)
-    server.serve()
+    RobotRemoteServer(*sys.argv[1:])
