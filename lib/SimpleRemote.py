@@ -26,12 +26,16 @@ class SimpleRemote(Remote):
     def transfer_and_import_library(self):
         self._transfer_list = [
             "\\RemoteLibrary\\mylib.py",
-            "\\RemoteLibrary\\main_library.py"
+            "\\RemoteLibrary\\RemoteLibrary.py"
         ]
-        self.script_to_import_library = "reload RemoteLibrary.main_library\nself._library = RemoteLibraryFactory(RemoteLibrary.main_library)"
         for file in self._transfer_list:
-            self.transfer_file(self.cur_dir+file,file)
-        self.run_script(self.script_to_import_library)
+            self.transfer_file(self.cur_dir+file,os.path.basename(file))
+        reload_scripts = "import mylib\n"
+        reload_scripts += "importlib.reload(mylib)\n"
+        reload_scripts += "import RemoteLibrary\n"
+        reload_scripts += "importlib.reload(RemoteLibrary)"
+        library_list_str = "[mylib,RemoteLibrary]"
+        self.reload_library_list(reload_scripts,library_list_str)
     
     def get_env_file(self):
         self.env_file =  self.cur_dir+"\\env.json"
@@ -57,6 +61,9 @@ class SimpleRemote(Remote):
     def transfer_file(self, local_file, target_file):
         return self._client.transfer_file(local_file, target_file)
 
+    def reload_library_list(self,reload_scripts,library_list_str):
+        return self._client.reload_library_list(reload_scripts,library_list_str)
+
 class SimpleClient(XmlRpcRemoteClient):
 
     def run_script(self, script):
@@ -66,6 +73,9 @@ class SimpleClient(XmlRpcRemoteClient):
             with open(local_file, "rb") as handle:
                 binary_data = xmlrpclib.Binary(handle.read())
             return self._server.save_file(target_file, binary_data)
+
+    def reload_library_list(self,reload_scripts,library_list_str):
+        return self._server.reload_library_list(reload_scripts,library_list_str)
 
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
