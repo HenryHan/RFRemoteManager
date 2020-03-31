@@ -2,6 +2,7 @@ from robotremoteserver import RobotRemoteServer
 from robotremoteserver import StandardStreamInterceptor
 from robotremoteserver import KeywordResult
 from robotremoteserver import BINARY
+from robotremoteserver import RemoteLibraryFactory
 import os,sys
 import importlib
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -12,6 +13,7 @@ class RemoteServer(RobotRemoteServer):
                  allow_stop='DEPRECATED', serve=True, allow_remote_stop=True):
         RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
         self.library_list = []
+        self.library_keywords = {}
 
     def _register_functions(self, server):
         server.register_function(self.run_script)
@@ -26,7 +28,8 @@ class RemoteServer(RobotRemoteServer):
     def reload_library_list(self,reload_scripts,library_list_str):
         exec(reload_scripts)
         exec("self.library_list = "+library_list_str)
-        print(self.library_list)
+        for module in self.library_list:
+            _library = RemoteLibraryFactory(module)
         return True
 
     def save_file(self, target_file, binary_data):
@@ -38,6 +41,18 @@ class RemoteServer(RobotRemoteServer):
             handle.write(binary_data.data)
             handle.close()
         return True
+
+    def get_keyword_names(self):
+        self.library_keywords = {}
+        key_words = []
+        for library in self.library_list:
+            instance = RemoteLibraryFactory(library)
+            self.library_keywords[instance] = instance.get_keyword_names()
+            key_words.append(self.library_keywords[instance])
+        print(self.library_keywords)
+        return key_words
+        
+
 
 class ScriptRunner():
     def __init__(self, script):
