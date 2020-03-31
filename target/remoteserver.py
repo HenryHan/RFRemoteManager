@@ -3,6 +3,7 @@ from robotremoteserver import StandardStreamInterceptor
 from robotremoteserver import KeywordResult
 from robotremoteserver import BINARY
 from robotremoteserver import RemoteLibraryFactory
+from robotremoteserver import KeywordRunner
 import os,sys
 import importlib
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,8 +51,15 @@ class RemoteServer(RobotRemoteServer):
             self.library_keywords[instance] = instance.get_keyword_names()
             key_words.append(self.library_keywords[instance])
         print(self.library_keywords)
-        return key_words
-        
+        return key_words + ['stop_remote_server']
+
+    def run_keyword(self, name, args, kwargs=None):
+        if name == 'stop_remote_server':
+            return KeywordRunner(self.stop_remote_server).run_keyword(args, kwargs)
+        for instance in self.library_keywords.keys():
+            if name in self.library_keywords[instance]:
+                return instance.run_keyword(name, args, kwargs)
+        return None        
 
 
 class ScriptRunner():

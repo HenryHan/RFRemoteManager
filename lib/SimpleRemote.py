@@ -79,4 +79,4 @@ class SimpleClient(XmlRpcRemoteClient):
 
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
-    sr.get_keyword_names()
+    sr.run_keyword("add",1,2)
