@@ -25,16 +25,13 @@ class SimpleRemote(Remote):
     
     def transfer_and_import_library(self):
         self._transfer_list = [
-            "\\RemoteLibrary\\mylib.py",
             "\\RemoteLibrary\\RemoteLibrary.py"
         ]
         for file in self._transfer_list:
             self.transfer_file(self.cur_dir+file,os.path.basename(file))
-        reload_scripts = "import mylib\n"
-        reload_scripts += "importlib.reload(mylib)\n"
         reload_scripts += "import RemoteLibrary\n"
-        reload_scripts += "importlib.reload(RemoteLibrary)"
-        library_list_str = "[mylib,RemoteLibrary]"
+        reload_scripts += "importlib.reload(RemoteLibrary)\n"
+        library_list_str = "[RemoteLibrary]"
         self.reload_library_list(reload_scripts,library_list_str)
     
     def get_env_file(self):
@@ -54,10 +51,6 @@ class SimpleRemote(Remote):
                     self.ip = env[env[lab]]["ip"]
                     self.port = env[env[lab]]["port"]
 
-
-    def run_script(self, script):
-        return self._client.run_script(script)
-
     def transfer_file(self, local_file, target_file):
         return self._client.transfer_file(local_file, target_file)
 
@@ -65,9 +58,6 @@ class SimpleRemote(Remote):
         return self._client.reload_library_list(reload_scripts,library_list_str)
 
 class SimpleClient(XmlRpcRemoteClient):
-
-    def run_script(self, script):
-        return self._server.run_script(script)
 
     def transfer_file(self, local_file, target_file):
             with open(local_file, "rb") as handle:
@@ -79,4 +69,3 @@ class SimpleClient(XmlRpcRemoteClient):
 
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
-    sr.run_keyword("add",1,2)

@@ -593,9 +593,3 @@ def stop_remote_server(uri, log=True):
         logger('Stopping not allowed!')
         return False
     return True
-
-
-if __name__ == '__main__':
-    lib = os
-    server = RobotRemoteServer(lib)
-    server.serve()

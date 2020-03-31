@@ -10,27 +10,23 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 class RemoteServer(RobotRemoteServer):
 
-    def __init__(self, host='127.0.0.1', port=8270, port_file=None,
+    def __init__(self, host='0.0.0.0', port=8270, port_file=None,
                  allow_stop='DEPRECATED', serve=True, allow_remote_stop=True):
         RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
         self.library_list = []
         self.library_keywords = {}
 
     def _register_functions(self, server):
-        server.register_function(self.run_script)
         server.register_function(self.save_file)
         server.register_function(self.reload_library_list)
         RobotRemoteServer._register_functions(self, server)
-
-    def run_script(self, script):
-        sr = ScriptRunner(script)
-        return sr.run_script()
 
     def reload_library_list(self,reload_scripts,library_list_str):
         exec(reload_scripts)
         exec("self.library_list = "+library_list_str)
         for module in self.library_list:
             _library = RemoteLibraryFactory(module)
+        self.get_keyword_names()
         return True
 
     def save_file(self, target_file, binary_data):
@@ -49,8 +45,7 @@ class RemoteServer(RobotRemoteServer):
         for library in self.library_list:
             instance = RemoteLibraryFactory(library)
             self.library_keywords[instance] = instance.get_keyword_names()
-            key_words.append(self.library_keywords[instance])
-        print(self.library_keywords)
+            key_words+=self.library_keywords[instance]
         return key_words + ['stop_remote_server']
 
     def run_keyword(self, name, args, kwargs=None):
@@ -59,31 +54,32 @@ class RemoteServer(RobotRemoteServer):
         for instance in self.library_keywords.keys():
             if name in self.library_keywords[instance]:
                 return instance.run_keyword(name, args, kwargs)
-        return None        
+        raise "Keyword not found" 
 
+    def get_keyword_arguments(self, name):
+        if name == 'stop_remote_server':
+            return []
+        for instance in self.library_keywords.keys():
+            if name in self.library_keywords[instance]:
+                return instance.get_keyword_arguments(name)
+        return []
+    
+    def get_keyword_documentation(self, name):
+        if name == 'stop_remote_server':
+            return ('Stop the remote server unless stopping is disabled.\n\n'
+                    'Return ``True/False`` depending was server stopped or not.')
+        for instance in self.library_keywords.keys():
+            if name in self.library_keywords[instance]:
+                return instance.get_keyword_documentation(name)
+        return ""
 
-class ScriptRunner():
-    def __init__(self, script):
-        self._script = script
-
-    def run_script(self):
-        result = KeywordResult()
-        with StandardStreamInterceptor() as interceptor:
-            try:
-                return_value = exec(self._script)
-            except Exception:
-                result.set_error(*sys.exc_info())
-            else:
-                try:
-                    result.set_return(return_value)
-                except Exception:
-                    result.set_error(*sys.exc_info()[:2])
-                else:
-                    result.set_status('PASS')
-        result.set_output(interceptor.output)
-        print(self._script)
-        print(result.data)
-        return result.data
+    def get_keyword_tags(self, name):
+        if name == 'stop_remote_server':
+            return []
+        for instance in self.library_keywords.keys():
+            if name in self.library_keywords[instance]:
+                return instance.get_keyword_tags(name)
+        return []
 
 if __name__ == "__main__":
     rs = RemoteServer()
