@@ -605,6 +605,7 @@ class RemoteServer(RobotRemoteServer):
         RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
         self.library_list = []
         self.library_keywords = {}
+        self.debug = False
 
     def _register_functions(self, server):
         server.register_function(self.save_file)
@@ -645,7 +646,9 @@ class RemoteServer(RobotRemoteServer):
         for instance in self.library_keywords.keys():
             if name in self.library_keywords[instance]:
                 return instance.run_keyword(name, args, kwargs)
-        raise "Keyword not found" 
+        result = KeywordResult()
+        result.data["error"]="Keyword not found" 
+        return result.data
 
     def get_keyword_arguments(self, name):
         if name == 'stop_remote_server':
@@ -671,12 +674,6 @@ class RemoteServer(RobotRemoteServer):
             if name in self.library_keywords[instance]:
                 return instance.get_keyword_tags(name)
         return []
-
-    def enable_remote_debug(self):
-        import ptvsd 
-        ptvsd.enable_attach(address =('0.0.0.0',8269))
-        ptvsd.wait_for_attach()
-        return True
 
 if __name__ == "__main__":
     rs = RemoteServer()
