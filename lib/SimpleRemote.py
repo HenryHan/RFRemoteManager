@@ -29,7 +29,7 @@ class SimpleRemote(Remote):
         ]
         for file in self._transfer_list:
             self.transfer_file(self.cur_dir+file,os.path.basename(file))
-        reload_scripts += "import RemoteLibrary\n"
+        reload_scripts = "import RemoteLibrary\n"
         reload_scripts += "importlib.reload(RemoteLibrary)\n"
         library_list_str = "[RemoteLibrary]"
         self.reload_library_list(reload_scripts,library_list_str)
@@ -57,6 +57,9 @@ class SimpleRemote(Remote):
     def reload_library_list(self,reload_scripts,library_list_str):
         return self._client.reload_library_list(reload_scripts,library_list_str)
 
+    def enable_remote_debug(self):
+        return self._client.enable_remote_debug()
+
 class SimpleClient(XmlRpcRemoteClient):
 
     def transfer_file(self, local_file, target_file):
@@ -67,5 +70,10 @@ class SimpleClient(XmlRpcRemoteClient):
     def reload_library_list(self,reload_scripts,library_list_str):
         return self._server.reload_library_list(reload_scripts,library_list_str)
 
+    def enable_remote_debug(self):
+        return self._server.enable_remote_debug()
+
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
+    sr.enable_remote_debug()
+    print(sr.run_keyword("multiply",[1,2],{}))
