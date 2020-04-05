@@ -648,7 +648,7 @@ class RemoteServer(RobotRemoteServer):
         now =  datetime.datetime.now()
         if env["suite_name"] != self.current_suite:
             self.current_suite = env["suite_name"]
-            print("%s: Suite: %s" % (now,self.current_suite))        
+            print("%s: **TestSuite: %s" % (now,self.current_suite))        
         if env["test_name"] != self.current_test:
             self.current_test = env["test_name"]
             print("%s: ****TestCase: %s" % (now,self.current_test))
@@ -659,10 +659,10 @@ class RemoteServer(RobotRemoteServer):
         for instance in self.library_keywords.keys():
             if name in self.library_keywords[instance]:
                 out = kwargs if kwargs else args
-                print("%s: ********KeyWord: %s(%s)" % (now,name,out))
+                print("%s: >>>>KeyWord: %s(%s)" % (now,name,out))
                 data = instance.run_keyword(name, args, kwargs)
         now =  datetime.datetime.now()
-        print("%s: ********Return: %s" % (now,data))
+        print("%s: <<<<Return: %s" % (now,data))
         if "error" in data.keys():
             print("==============error info=============")
             print(data["error"]) 
