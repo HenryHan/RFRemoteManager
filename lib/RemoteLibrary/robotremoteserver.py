@@ -596,21 +596,23 @@ def stop_remote_server(uri, log=True):
 
 import os,sys
 import importlib
+import datetime
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 class RemoteServer(RobotRemoteServer):
 
     def __init__(self, host='0.0.0.0', port=8270, port_file=None,
                  allow_stop='DEPRECATED', serve=True, allow_remote_stop=True):
-        RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
         self.library_list = []
         self.library_keywords = {}
-        self.debug = False
+        self.current_suite = ""
+        self.current_test = ""
+        RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
+
 
     def _register_functions(self, server):
         server.register_function(self.save_file)
         server.register_function(self.reload_library_list)
-        server.register_function(self.enable_remote_debug)
         RobotRemoteServer._register_functions(self, server)
 
     def reload_library_list(self,reload_scripts,library_list_str):
@@ -640,15 +642,33 @@ class RemoteServer(RobotRemoteServer):
             key_words+=self.library_keywords[instance]
         return key_words + ['stop_remote_server']
 
-    def run_keyword(self, name, args, kwargs=None):
+    def run_keyword(self, name, args, env, kwargs=None):
         if name == 'stop_remote_server':
             return KeywordRunner(self.stop_remote_server).run_keyword(args, kwargs)
+        now =  datetime.datetime.now()
+        if env["suite_name"] != self.current_suite:
+            self.current_suite = env["suite_name"]
+            print("%s: Suite: %s" % (now,self.current_suite))        
+        if env["test_name"] != self.current_test:
+            self.current_test = env["test_name"]
+            print("%s: ****TestCase: %s" % (now,self.current_test))
+        result = KeywordResult()
+        data = result.data
+        data["error"]="Keyword not found" 
+        data["trackback"]="" 
         for instance in self.library_keywords.keys():
             if name in self.library_keywords[instance]:
-                return instance.run_keyword(name, args, kwargs)
-        result = KeywordResult()
-        result.data["error"]="Keyword not found" 
-        return result.data
+                out = kwargs if kwargs else args
+                print("%s: ********KeyWord: %s(%s)" % (now,name,out))
+                data = instance.run_keyword(name, args, kwargs)
+        now =  datetime.datetime.now()
+        print("%s: ********Return: %s" % (now,data))
+        if "error" in data.keys():
+            print("==============error info=============")
+            print(data["error"]) 
+        if "traceback" in data.keys():
+            print(data["traceback"]) 
+        return data
 
     def get_keyword_arguments(self, name):
         if name == 'stop_remote_server':

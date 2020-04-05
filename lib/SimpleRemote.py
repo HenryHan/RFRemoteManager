@@ -1,13 +1,19 @@
 from robot.libraries.Remote import Remote
 from robot.libraries.Remote import XmlRpcRemoteClient
 from robot.utils import timestr_to_secs
-from imp import reload
+from robot.libraries.BuiltIn import BuiltIn
+import socket
 import os
 import json
 try:
     import xmlrpclib
 except ImportError:  # Py3
     import xmlrpc.client as xmlrpclib
+try:
+    from xml.parsers.expat import ExpatError
+except ImportError:
+    class ExpatError(Exception):
+        pass
 
 
 class SimpleRemote(Remote):
@@ -66,6 +72,28 @@ class SimpleClient(XmlRpcRemoteClient):
 
     def reload_library_list(self,reload_scripts,library_list_str):
         return self._server.reload_library_list(reload_scripts,library_list_str)
+
+    def run_keyword(self, name, args, kwargs):
+        env = {}
+        env["suite_name"] = str(BuiltIn().get_variable_value("${SUITE NAME}"))
+        env["test_name"] = str(BuiltIn().get_variable_value("${TEST NAME}"))
+        env["test_tags"] = str(BuiltIn().get_variable_value("${TEST TAGS}"))
+        run_keyword_args = [name, args, env, kwargs] if kwargs else [name, args, env]
+        try:
+            result = self._server.run_keyword(*run_keyword_args)
+            if "error" in result.keys():
+                result["error"] = result["error"] + "\n==============traceback=============\n" + result["traceback"]
+            return result
+        except xmlrpclib.Fault as err:
+            message = err.faultString
+        except socket.error as err:
+            message = 'Connection to remote server broken: %s' % err
+        except ExpatError as err:
+            message = ('Processing XML-RPC return value failed. '
+                       'Most often this happens when the return value '
+                       'contains characters that are not valid in XML. '
+                       'Original error was: ExpatError: %s' % err)
+        raise RuntimeError(message)
 
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
