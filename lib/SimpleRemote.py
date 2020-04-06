@@ -1,6 +1,7 @@
 from robot.libraries.Remote import Remote
 from robot.libraries.Remote import XmlRpcRemoteClient
 from robot.utils import timestr_to_secs
+from robot.errors import RobotError
 from robot.libraries.BuiltIn import BuiltIn
 import socket
 import os
@@ -22,6 +23,7 @@ class SimpleRemote(Remote):
         self.cur_dir = os.path.dirname(os.path.abspath(__file__))
         self.get_env_file()
         self.get_lab_ip_port(lab)
+        BuiltIn().log_to_console("**connecting to %s:%s" % (self.ip,self.port))
         uri = 'http://%s:%s' % (self.ip,self.port)
         if timeout:
             timeout = timestr_to_secs(timeout)
@@ -31,31 +33,39 @@ class SimpleRemote(Remote):
     
     def transfer_and_import_library(self):
         self._transfer_list = [
-            "\\RemoteLibrary\\RemoteLibrary.py"
+            "\\RemoteLibrary\\RemoteLibrary.py",
+            "\\RemoteLibrary\\RemoteLibrary2.py"
         ]
         for file in self._transfer_list:
             self.transfer_file(self.cur_dir+file,os.path.basename(file))
         reload_scripts = "import RemoteLibrary\n"
         reload_scripts += "importlib.reload(RemoteLibrary)\n"
-        library_list_str = "[RemoteLibrary]"
+        reload_scripts += "import RemoteLibrary2\n"
+        reload_scripts += "importlib.reload(RemoteLibrary2)\n"
+        reload_scripts += "tc= RemoteLibrary2.TestClass()\n"
+        library_list_str = "[tc,RemoteLibrary]"
         self.reload_library_list(reload_scripts,library_list_str)
     
     def get_env_file(self):
         self.env_file =  self.cur_dir+"\\env.json"
 
     def get_lab_ip_port(self, lab):
-        self.ip = "127.0.0.1"
-        self.port = 8270
-        if os.path.exists(self.env_file):
-            file = open(self.env_file,encoding="utf-8")
-            env = json.load(file)
-            if lab in env.keys():
-                if env[lab] is dict:
-                    self.ip = env[lab]["ip"]
-                    self.port = env[lab]["port"]
-                else:
-                    self.ip = env[env[lab]]["ip"]
-                    self.port = env[env[lab]]["port"]
+        self.ip = None
+        self.port = None
+        file = open(self.env_file,encoding="utf-8")
+        env = json.load(file)
+        for item in env:
+            if lab in item.keys():
+                lab = item[lab]
+        for item in env:
+            if "name" in item.keys():
+                if item["name"] == lab:
+                    self.ip = item["ip"]
+                    self.port = item["port"]
+        if self.ip and self.port:
+            return True
+        else:
+            raise RobotError("get ip or port failed!")
 
     def transfer_file(self, local_file, target_file):
         return self._client.transfer_file(local_file, target_file)
@@ -97,4 +107,3 @@ class SimpleClient(XmlRpcRemoteClient):
 
 if __name__=="__main__":
     sr = SimpleRemote("target_1")
-    sr.run_keyword("multiply",[1,2],{})
