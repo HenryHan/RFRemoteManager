@@ -19,17 +19,18 @@ except ImportError:
 
 class SimpleRemote(Remote):
 
-    def __init__(self, lab, timeout=None):
+    def __init__(self, ip="127.0.0.1", port=8270, timeout=None):
         self.cur_dir = os.path.dirname(os.path.abspath(__file__))
-        self.get_env_file()
-        self.get_lab_ip_port(lab)
-        BuiltIn().log_to_console("**connecting to %s:%s" % (self.ip,self.port))
-        uri = 'http://%s:%s' % (self.ip,self.port)
+        BuiltIn().log_to_console("**connecting to %s:%s" % (ip,port))
+        uri = 'http://%s:%s' % (ip,port)
         if timeout:
             timeout = timestr_to_secs(timeout)
         self._uri = uri
         self._client = SimpleClient(uri, timeout)
-        self.transfer_and_import_library()
+        try:
+            self.transfer_and_import_library()
+        except:
+            pass
     
     def transfer_and_import_library(self):
         self._transfer_list = [
@@ -38,40 +39,19 @@ class SimpleRemote(Remote):
         ]
         for file in self._transfer_list:
             self.transfer_file(self.cur_dir+file,os.path.basename(file))
-        reload_scripts = "import RemoteLibrary\n"
-        reload_scripts += "importlib.reload(RemoteLibrary)\n"
-        reload_scripts += "import RemoteLibrary2\n"
-        reload_scripts += "importlib.reload(RemoteLibrary2)\n"
-        reload_scripts += "tc= RemoteLibrary2.TestClass()\n"
-        library_list_str = "[tc,RemoteLibrary]"
-        self.reload_library_list(reload_scripts,library_list_str)
-    
-    def get_env_file(self):
-        self.env_file =  self.cur_dir+"\\env.json"
-
-    def get_lab_ip_port(self, lab):
-        self.ip = None
-        self.port = None
-        file = open(self.env_file,encoding="utf-8")
-        env = json.load(file)
-        for item in env:
-            if lab in item.keys():
-                lab = item[lab]
-        for item in env:
-            if "name" in item.keys():
-                if item["name"] == lab:
-                    self.ip = item["ip"]
-                    self.port = item["port"]
-        if self.ip and self.port:
-            return True
-        else:
-            raise RobotError("get ip or port failed!")
+        self.reload_scripts = "import RemoteLibrary\n"
+        self.reload_scripts += "importlib.reload(RemoteLibrary)\n"
+        self.reload_scripts += "import RemoteLibrary2\n"
+        self.reload_scripts += "importlib.reload(RemoteLibrary2)\n"
+        self.reload_scripts += "tc= RemoteLibrary2.TestClass()\n"
+        self.reload_scripts += "self.library_list=[tc,RemoteLibrary]"
+        self.reload_library_list(self.reload_scripts)
 
     def transfer_file(self, local_file, target_file):
         return self._client.transfer_file(local_file, target_file)
 
-    def reload_library_list(self,reload_scripts,library_list_str):
-        return self._client.reload_library_list(reload_scripts,library_list_str)
+    def reload_library_list(self,reload_scripts):
+        return self._client.reload_library_list(reload_scripts)
 
 class SimpleClient(XmlRpcRemoteClient):
 
@@ -80,8 +60,8 @@ class SimpleClient(XmlRpcRemoteClient):
                 binary_data = xmlrpclib.Binary(handle.read())
             return self._server.save_file(target_file, binary_data)
 
-    def reload_library_list(self,reload_scripts,library_list_str):
-        return self._server.reload_library_list(reload_scripts,library_list_str)
+    def reload_library_list(self,reload_scripts):
+        return self._server.reload_library_list(reload_scripts)
 
     def run_keyword(self, name, args, kwargs):
         env = {}
@@ -106,4 +86,4 @@ class SimpleClient(XmlRpcRemoteClient):
         raise RuntimeError(message)
 
 if __name__=="__main__":
-    sr = SimpleRemote("target_1")
+    sr = SimpleRemote("10.91.44.162")

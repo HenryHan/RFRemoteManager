@@ -597,7 +597,29 @@ def stop_remote_server(uri, log=True):
 import os,sys
 import importlib
 import datetime
+import configparser
 cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+class RemoteConfig():
+
+    def __init__(self,file):
+        self.config = configparser.ConfigParser()
+        self.file = file
+        self.config.read(self.file)
+
+    def get_import_strings(self):
+        result = None
+        if "basic" in self.config.sections():
+            if "import_strings" in self.config["basic"]._options():
+                result = self.config.get("basic","import_strings")
+        return result
+
+    def save_import_strings(self,import_strings):
+        if "basic" not in self.config.sections():
+            self.config.add_section("basic")
+        self.config.set("basic","import_strings",import_strings)
+        self.config.write(open(self.file,"w"))
+        return True
 
 class RemoteServer(RobotRemoteServer):
 
@@ -607,6 +629,10 @@ class RemoteServer(RobotRemoteServer):
         self.library_keywords = {}
         self.current_suite = ""
         self.current_test = ""
+        self.config = RemoteConfig(cur_dir+"\\config.ini")
+        import_strings = self.config.get_import_strings()
+        if import_strings:
+            self.reload_library_list(import_strings)
         RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
 
 
@@ -615,9 +641,9 @@ class RemoteServer(RobotRemoteServer):
         server.register_function(self.reload_library_list)
         RobotRemoteServer._register_functions(self, server)
 
-    def reload_library_list(self,reload_scripts,library_list_str):
+    def reload_library_list(self,reload_scripts):
+        self.config.save_import_strings(reload_scripts)
         exec(reload_scripts)
-        exec("self.library_list = "+library_list_str)
         for module in self.library_list:
             _library = RemoteLibraryFactory(module)
         self.get_keyword_names()
