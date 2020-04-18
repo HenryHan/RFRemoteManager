@@ -674,7 +674,7 @@ class RemoteServer(RobotRemoteServer):
         RobotRemoteServer._register_functions(self, server)
 
     def run_script(self, script):
-        script = base64.b64decode(script)
+        script = base64.b64decode(script).decode("utf8")
         return self.script_runner.send(script)
 
     def reload_library_list(self,reload_scripts):
