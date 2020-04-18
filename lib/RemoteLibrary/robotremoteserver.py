@@ -598,7 +598,36 @@ import os,sys
 import importlib
 import datetime
 import configparser
+import base64
 cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+def script_runner():
+    code = ""
+    while True:
+        result = KeywordResult()
+        with StandardStreamInterceptor() as interceptor:
+            try:
+                return_value = exec(code)
+            except Exception:
+                result.set_error(*sys.exc_info())
+            else:
+                try:
+                    result.set_return(return_value)
+                except Exception:
+                    result.set_error(*sys.exc_info()[:2])
+                else:
+                    result.set_status('PASS')
+        result.set_output(interceptor.output)
+        if code:
+            print(">>> "+code) 
+        if "output" in result.data.keys():
+            print(result.data["output"]) 
+        if "Error" in result.data.keys():
+            print("Error: "+result.data["Error"]) 
+        if "traceback" in result.data.keys():
+            print(result.data["traceback"]) 
+        code = yield result.data
+        
 
 class RemoteConfig():
 
@@ -633,13 +662,20 @@ class RemoteServer(RobotRemoteServer):
         import_strings = self.config.get_import_strings()
         if import_strings:
             self.reload_library_list(import_strings)
+        self.script_runner = script_runner()
+        self.script_runner.send(None)
         RobotRemoteServer.__init__(self,os, host,port,port_file,allow_stop,serve,allow_remote_stop)
-
+        
 
     def _register_functions(self, server):
         server.register_function(self.save_file)
         server.register_function(self.reload_library_list)
+        server.register_function(self.run_script)
         RobotRemoteServer._register_functions(self, server)
+
+    def run_script(self, script):
+        script = base64.b64decode(script)
+        return self.script_runner.send(script)
 
     def reload_library_list(self,reload_scripts):
         self.config.save_import_strings(reload_scripts)
@@ -688,12 +724,12 @@ class RemoteServer(RobotRemoteServer):
                 print("%s: >>>>KeyWord: %s(%s)" % (now,name,out))
                 data = instance.run_keyword(name, args, kwargs)
         now =  datetime.datetime.now()
-        print("%s: <<<<Return: %s" % (now,data))
-        if "error" in data.keys():
-            print("==============error info=============")
-            print(data["error"]) 
-        if "traceback" in data.keys():
-            print(data["traceback"]) 
+        if "output" in result.data.keys():
+            print(result.data["output"]) 
+        if "Error" in result.data.keys():
+            print("Error: "+result.data["Error"]) 
+        if "traceback" in result.data.keys():
+            print(result.data["traceback"]) 
         return data
 
     def get_keyword_arguments(self, name):
@@ -720,6 +756,7 @@ class RemoteServer(RobotRemoteServer):
             if name in self.library_keywords[instance]:
                 return instance.get_keyword_tags(name)
         return []
+
 
 if __name__ == "__main__":
     rs = RemoteServer()

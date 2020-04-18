@@ -53,6 +53,9 @@ class SimpleRemote(Remote):
     def reload_library_list(self,reload_scripts):
         return self._client.reload_library_list(reload_scripts)
 
+    def run_script(self,script):
+        return self._client.run_script(script)
+
 class SimpleClient(XmlRpcRemoteClient):
 
     def transfer_file(self, local_file, target_file):
@@ -62,6 +65,9 @@ class SimpleClient(XmlRpcRemoteClient):
 
     def reload_library_list(self,reload_scripts):
         return self._server.reload_library_list(reload_scripts)
+
+    def run_script(self,script):
+        return self._server.run_script(script)
 
     def run_keyword(self, name, args, kwargs):
         env = {}
@@ -86,4 +92,5 @@ class SimpleClient(XmlRpcRemoteClient):
         raise RuntimeError(message)
 
 if __name__=="__main__":
-    sr = SimpleRemote("10.91.44.162")
+    sr = SimpleRemote("10.91.44.228")
+    print(sr.run_script("cHJpbnQoYSk="))
