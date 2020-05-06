@@ -658,7 +658,7 @@ class RemoteServer(RobotRemoteServer):
         self.library_keywords = {}
         self.current_suite = ""
         self.current_test = ""
-        self.config = RemoteConfig(cur_dir+"\\config.ini")
+        self.config = RemoteConfig(cur_dir+"/config.ini")
         import_strings = self.config.get_import_strings()
         if import_strings:
             self.reload_library_list(import_strings)
@@ -674,7 +674,7 @@ class RemoteServer(RobotRemoteServer):
         RobotRemoteServer._register_functions(self, server)
 
     def run_script(self, script):
-        script = base64.b64decode(script).decode("utf8")
+        script = base64.b64decode(script).decode("utf-8")
         return self.script_runner.send(script)
 
     def reload_library_list(self,reload_scripts):
@@ -686,7 +686,7 @@ class RemoteServer(RobotRemoteServer):
         return True
 
     def save_file(self, target_file, binary_data):
-        full_path = cur_dir+"\\"+target_file
+        full_path = cur_dir+"/"+target_file
         target_dir = os.path.dirname(full_path)
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
